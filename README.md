@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jeffreyd/yucheegung/trunk/icon.svg" alt="YuCheeGung Icon" width="200"/>
+</p>
+
 # YuCheeGung
 
 > Most of this README was written by Claude Code. It may contain errors or inaccuracies.
