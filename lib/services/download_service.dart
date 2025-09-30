@@ -40,16 +40,24 @@ class DownloadService {
     required JellyfinServer server,
     required JellyfinAuth auth,
     required Function(int current, int total) onProgress,
+    String? libraryName,
   }) async {
     final downloadLocation = await _settingsService.getDownloadLocation();
     if (downloadLocation == null) {
       throw Exception('No download location set. Please configure download settings first.');
     }
 
-    // Create album directory: DownloadLocation/ArtistName/AlbumName
+    // Create album directory: DownloadLocation/LibraryName/ArtistName/AlbumName
     final sanitizedArtist = _sanitizeFilename(artistName);
     final sanitizedAlbum = _sanitizeFilename(albumName);
-    final albumDir = path.join(downloadLocation, sanitizedArtist, sanitizedAlbum);
+
+    String albumDir;
+    if (libraryName != null && libraryName.isNotEmpty) {
+      final sanitizedLibrary = _sanitizeFilename(libraryName);
+      albumDir = path.join(downloadLocation, sanitizedLibrary, sanitizedArtist, sanitizedAlbum);
+    } else {
+      albumDir = path.join(downloadLocation, sanitizedArtist, sanitizedAlbum);
+    }
 
     final dir = Directory(albumDir);
     if (!await dir.exists()) {

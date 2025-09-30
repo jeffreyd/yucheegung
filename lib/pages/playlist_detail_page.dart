@@ -13,11 +13,13 @@ import '../providers/player_provider.dart';
 class PlaylistDetailPage extends StatefulWidget {
   final JellyfinPlaylist playlist;
   final JellyfinServer server;
+  final String? libraryName;
 
   const PlaylistDetailPage({
     super.key,
     required this.playlist,
     required this.server,
+    this.libraryName,
   });
 
   @override
@@ -154,6 +156,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
         server: widget.server,
         auth: auth,
         onProgress: (current, total) {},
+        libraryName: widget.libraryName,
       );
 
       setState(() {

@@ -17,12 +17,14 @@ class ArtistDetailPage extends StatefulWidget {
   final JellyfinArtist artist;
   final JellyfinServer server;
   final bool isOfflineMode;
+  final String? libraryName;
 
   const ArtistDetailPage({
     super.key,
     required this.artist,
     required this.server,
     this.isOfflineMode = false,
+    this.libraryName,
   });
 
   @override
@@ -236,6 +238,7 @@ class _ArtistDetailPageState extends State<ArtistDetailPage> {
             server: widget.server,
             auth: auth,
             onProgress: (current, total) {},
+            libraryName: widget.libraryName,
           );
         }
 
@@ -346,6 +349,7 @@ class _ArtistDetailPageState extends State<ArtistDetailPage> {
                               album: album,
                               server: widget.server,
                               isOfflineMode: widget.isOfflineMode,
+                              libraryName: widget.libraryName,
                             ),
                           ),
                         );

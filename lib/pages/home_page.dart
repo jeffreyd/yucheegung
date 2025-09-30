@@ -90,18 +90,28 @@ class _HomePageState extends State<HomePage> {
 
         print('DEBUG: Filtered libraries: ${selected.length}');
 
+        // Try to load the previously selected library
+        final savedLibraryId = await _settingsService.getCurrentLibrary();
+
         setState(() {
           _availableLibraries = selected;
           if (selected.isNotEmpty) {
-            _currentLibraryId = selected.first.id;
-            _currentLibrary = selected.first;
+            // Use saved library if it exists and is still in selected libraries
+            if (savedLibraryId != null && selected.any((lib) => lib.id == savedLibraryId)) {
+              _currentLibraryId = savedLibraryId;
+              _currentLibrary = selected.firstWhere((lib) => lib.id == savedLibraryId);
+            } else {
+              // Otherwise use first library
+              _currentLibraryId = selected.first.id;
+              _currentLibrary = selected.first;
+            }
           }
           _isLoading = false;
         });
 
-        // Load artists for the first library
-        if (selected.isNotEmpty) {
-          await _loadArtists(selected.first.id);
+        // Load artists for the selected library
+        if (_currentLibraryId != null) {
+          await _loadArtists(_currentLibraryId!);
         }
       }
     } catch (e) {
@@ -215,12 +225,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _selectLibrary(String libraryId) {
+  void _selectLibrary(String libraryId) async {
     final library = _availableLibraries?.firstWhere((lib) => lib.id == libraryId);
     setState(() {
       _currentLibraryId = libraryId;
       _currentLibrary = library;
     });
+
+    // Save the selected library
+    await _settingsService.saveCurrentLibrary(libraryId);
+
     Navigator.of(context).pop(); // Close drawer
     _loadArtists(libraryId); // Load artists for the selected library
   }
@@ -449,6 +463,7 @@ class _HomePageState extends State<HomePage> {
                 MaterialPageRoute(
                   builder: (context) => PlaylistListPage(
                     server: _server!,
+                    libraryName: _currentLibrary?.name,
                   ),
                 ),
               );
@@ -477,6 +492,7 @@ class _HomePageState extends State<HomePage> {
                   artist: artist,
                   server: _server!,
                   isOfflineMode: _isOfflineMode,
+                  libraryName: _currentLibrary?.name,
                 ),
               ),
             );

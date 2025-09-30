@@ -9,6 +9,7 @@ class SettingsService {
   static const String _keyAuth = 'jellyfin_auth';
   static const String _keySelectedLibraries = 'selected_libraries';
   static const String _keyDownloadLocation = 'download_location';
+  static const String _keyCurrentLibrary = 'current_library';
   static const String _keyDownloadedItems = 'downloaded_items';
 
   Future<bool> isFirstRun() async {
@@ -76,12 +77,23 @@ class SettingsService {
     return prefs.getString(_keyDownloadLocation);
   }
 
+  Future<void> saveCurrentLibrary(String libraryId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyCurrentLibrary, libraryId);
+  }
+
+  Future<String?> getCurrentLibrary() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyCurrentLibrary);
+  }
+
   Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyServer);
     await prefs.remove(_keyAuth);
     await prefs.remove(_keySelectedLibraries);
     await prefs.remove(_keyDownloadLocation);
+    await prefs.remove(_keyCurrentLibrary);
     await prefs.setBool(_keyFirstRun, true);
   }
 

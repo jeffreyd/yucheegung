@@ -15,12 +15,14 @@ class AlbumDetailPage extends StatefulWidget {
   final JellyfinAlbum album;
   final JellyfinServer server;
   final bool isOfflineMode;
+  final String? libraryName;
 
   const AlbumDetailPage({
     super.key,
     required this.album,
     required this.server,
     this.isOfflineMode = false,
+    this.libraryName,
   });
 
   @override
@@ -203,6 +205,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
           currentSong = current;
           totalSongs = total;
         },
+        libraryName: widget.libraryName,
       );
 
       setState(() {

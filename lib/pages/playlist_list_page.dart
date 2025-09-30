@@ -7,10 +7,12 @@ import 'playlist_detail_page.dart';
 
 class PlaylistListPage extends StatefulWidget {
   final JellyfinServer server;
+  final String? libraryName;
 
   const PlaylistListPage({
     super.key,
     required this.server,
+    this.libraryName,
   });
 
   @override
@@ -134,6 +136,7 @@ class _PlaylistListPageState extends State<PlaylistListPage> {
                             builder: (context) => PlaylistDetailPage(
                               playlist: playlist,
                               server: widget.server,
+                              libraryName: widget.libraryName,
                             ),
                           ),
                         );
