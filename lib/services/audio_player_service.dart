@@ -201,9 +201,12 @@ class AudioPlayerService {
   void setupAutoAdvance() {
     _player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
-        // Automatically advance to next song
+        // Automatically advance to next song, or loop back to start
         if (hasNext) {
           skipNext();
+        } else if (_queue.isNotEmpty) {
+          // Loop back to the beginning
+          _playSongAtIndex(0);
         }
       }
     });
