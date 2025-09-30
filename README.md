@@ -3,6 +3,14 @@
 > Most of this README was written by Claude Code. It may contain errors or inaccuracies.
 
 ## About (written by a human)
+Guess who's back in the motherfuckin' house with a JellyFin app for your motherfucking phone?
+Yep, I'm back again with another _entirely_ AI-generated app. There's a number of JellyFin
+music players out there, not least of which is [FinAmp](https://github.com/jmshrv/finamp),
+which is great, but none of them really worked like I want them to so I had Claude write
+one for me. _Very_ simple navigation, with Artist -> Album -> Song and the ability to shuffle
+entire artists or albums which will loop forever. I mostly use this on the rare occasion I
+want to listen to music in the car or, my primary usage, listening to the audio from TV shows
+ripped to MP3 while I sleep. As such, it's not very feature-full.
 
 ## Key Features
 

@@ -1,30 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <!-- Bowl -->
-  <ellipse cx="256" cy="400" rx="200" ry="40" fill="#8B4513" opacity="0.3"/>
-  <path d="M 100 280 Q 100 400, 256 420 Q 412 400, 412 280 L 412 300 Q 412 380, 256 400 Q 100 380, 100 300 Z"
-        fill="#D2691E" stroke="#8B4513" stroke-width="4"/>
+  <!-- Background circle to fill space -->
+  <circle cx="256" cy="256" r="256" fill="#1A202C"/>
+
+  <!-- Bowl shadow -->
+  <ellipse cx="256" cy="420" rx="220" ry="45" fill="#000000" opacity="0.3"/>
+
+  <!-- Bowl body -->
+  <path d="M 60 240 Q 60 380, 256 450 Q 452 380, 452 240 L 452 260 Q 452 360, 256 430 Q 60 360, 60 260 Z"
+        fill="#D2691E" stroke="#8B4513" stroke-width="6"/>
 
   <!-- Soup/Broth -->
-  <ellipse cx="256" cy="280" rx="180" ry="30" fill="#FFA500" opacity="0.7"/>
+  <ellipse cx="256" cy="240" rx="200" ry="35" fill="#FFA500" opacity="0.8"/>
 
-  <!-- Steam wisps -->
-  <path d="M 180 250 Q 175 230, 180 210 Q 185 190, 180 170"
-        fill="none" stroke="#E0E0E0" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
-  <path d="M 256 240 Q 251 220, 256 200 Q 261 180, 256 160"
-        fill="none" stroke="#E0E0E0" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
-  <path d="M 332 250 Q 337 230, 332 210 Q 327 190, 332 170"
-        fill="none" stroke="#E0E0E0" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+  <!-- Steam wisps (larger) -->
+  <path d="M 150 210 Q 145 180, 150 150 Q 155 120, 150 90 Q 145 60, 150 30"
+        fill="none" stroke="#E0E0E0" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+  <path d="M 256 200 Q 251 170, 256 140 Q 261 110, 256 80 Q 251 50, 256 20"
+        fill="none" stroke="#E0E0E0" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+  <path d="M 362 210 Q 367 180, 362 150 Q 357 120, 362 90 Q 367 60, 362 30"
+        fill="none" stroke="#E0E0E0" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
 
-  <!-- Shark fin (triangular, menacing) -->
-  <path d="M 256 120 L 320 280 Q 300 275, 280 280 Q 265 285, 256 280 Q 245 275, 230 280 Q 210 285, 192 280 Z"
-        fill="#4A5568" stroke="#2D3748" stroke-width="3"/>
+  <!-- Shark fin (larger, more menacing) -->
+  <path d="M 256 60 L 360 240 Q 330 235, 300 240 Q 278 245, 256 240 Q 234 235, 212 240 Q 182 245, 152 240 Z"
+        fill="#4A5568" stroke="#2D3748" stroke-width="5"/>
 
   <!-- Fin detail/highlight -->
-  <path d="M 256 120 L 280 200 Q 270 195, 256 200 Z"
-        fill="#718096" opacity="0.6"/>
+  <path d="M 256 60 L 300 170 Q 285 165, 256 175 Z"
+        fill="#718096" opacity="0.7"/>
+
+  <!-- Fin edge detail -->
+  <path d="M 256 60 L 360 240"
+        fill="none" stroke="#2D3748" stroke-width="3" opacity="0.8"/>
 
   <!-- Bowl rim highlight -->
-  <ellipse cx="256" cy="280" rx="180" ry="30"
-           fill="none" stroke="#CD853F" stroke-width="2" opacity="0.5"/>
+  <ellipse cx="256" cy="240" rx="200" ry="35"
+           fill="none" stroke="#CD853F" stroke-width="3" opacity="0.6"/>
+
+  <!-- Bowl top edge -->
+  <ellipse cx="256" cy="240" rx="200" ry="35"
+           fill="none" stroke="#A0522D" stroke-width="2" opacity="0.8"/>
 </svg>

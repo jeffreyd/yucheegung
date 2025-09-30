@@ -1,17 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:audio_service/audio_service.dart';
 import 'pages/first_run_page.dart';
 import 'pages/home_page.dart';
 import 'services/settings_service.dart';
 import 'providers/player_provider.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize audio service for Android Auto support
+  try {
+    await AudioService.init(
+      builder: () => AudioPlayerHandler(),
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.yucheegung.audio',
+        androidNotificationChannelName: 'YuCheeGung Audio',
+        androidNotificationOngoing: true,
+        androidStopForegroundOnPause: true,
+      ),
+    );
+  } catch (e) {
+    print('DEBUG: Failed to initialize AudioService: $e');
+    // Continue anyway - app will work without Android Auto
+  }
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => PlayerProvider(),
       child: const MyApp(),
     ),
   );
+}
+
+/// Audio handler for Android Auto integration
+class AudioPlayerHandler extends BaseAudioHandler {
+  AudioPlayerHandler() {
+    // Set initial playback state
+    playbackState.add(playbackState.value.copyWith(
+      controls: [
+        MediaControl.skipToPrevious,
+        MediaControl.play,
+        MediaControl.pause,
+        MediaControl.skipToNext,
+      ],
+      processingState: AudioProcessingState.idle,
+    ));
+  }
+
+  @override
+  Future<void> play() async {
+    playbackState.add(playbackState.value.copyWith(
+      playing: true,
+      processingState: AudioProcessingState.ready,
+    ));
+  }
+
+  @override
+  Future<void> pause() async {
+    playbackState.add(playbackState.value.copyWith(
+      playing: false,
+      processingState: AudioProcessingState.ready,
+    ));
+  }
+
+  @override
+  Future<void> skipToNext() async {
+    // Handled by AudioPlayerService
+  }
+
+  @override
+  Future<void> skipToPrevious() async {
+    // Handled by AudioPlayerService
+  }
 }
 
 class MyApp extends StatelessWidget {

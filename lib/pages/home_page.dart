@@ -51,7 +51,7 @@ class _HomePageState extends State<HomePage> {
       final auth = await _settingsService.getAuth();
       final selectedIds = await _settingsService.getSelectedLibraries();
 
-      print('DEBUG: server=$server, auth=$auth, selectedIds=$selectedIds');
+      print('DEBUG: server=${server?.baseUrl}, auth=${auth != null ? "present" : "null"}, selectedIds=$selectedIds');
 
       if (server != null && auth != null) {
         _server = server;

@@ -1,4 +1,5 @@
 import 'package:just_audio/just_audio.dart';
+import 'package:audio_service/audio_service.dart';
 import 'dart:io';
 import '../models/jellyfin_song.dart';
 import '../models/jellyfin_server.dart';
@@ -61,6 +62,9 @@ class AudioPlayerService {
     _currentIndex = index;
     final song = _queue[index];
 
+    // Update media notification for Android Auto
+    await _updateMediaItem(song);
+
     try {
       if (_isOfflineMode) {
         // Play from local file
@@ -78,8 +82,7 @@ class AudioPlayerService {
         }
 
         final streamUrl = _buildStreamUrl(song.id);
-        print('DEBUG: Streaming from URL: $streamUrl');
-        print('DEBUG: Auth header: ${_buildAuthHeader()}');
+        print('DEBUG: Streaming song: ${song.name}');
 
         // Try using LockCachingAudioSource which might handle network better
         final audioSource = LockCachingAudioSource(
@@ -210,5 +213,32 @@ class AudioPlayerService {
         }
       }
     });
+  }
+
+  /// Update media item for Android Auto and notification
+  Future<void> _updateMediaItem(JellyfinSong song) async {
+    // Convert runTimeTicks to Duration (Jellyfin uses ticks where 10,000,000 ticks = 1 second)
+    Duration? songDuration;
+    if (song.runTimeTicks != null) {
+      songDuration = Duration(microseconds: (song.runTimeTicks! / 10).round());
+    }
+
+    final mediaItem = MediaItem(
+      id: song.id,
+      title: song.name,
+      artist: song.artistName ?? 'Unknown Artist',
+      album: song.albumId ?? '',
+      duration: songDuration,
+      artUri: _server != null && song.albumId != null
+          ? Uri.parse('${_server!.baseUrl}/Items/${song.albumId}/Images/Primary')
+          : null,
+    );
+
+    try {
+      await AudioService.updateMediaItem(mediaItem);
+    } catch (e) {
+      // AudioService might not be initialized, that's okay
+      print('DEBUG: Could not update media item: $e');
+    }
   }
 }
