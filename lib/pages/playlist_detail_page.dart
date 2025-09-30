@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/jellyfin_playlist.dart';
 import '../models/jellyfin_server.dart';
 import '../models/jellyfin_song.dart';
@@ -6,6 +7,8 @@ import '../services/jellyfin_service.dart';
 import '../services/settings_service.dart';
 import '../services/download_service.dart';
 import '../utils/shuffle_helper.dart';
+import '../widgets/mini_player.dart';
+import '../providers/player_provider.dart';
 
 class PlaylistDetailPage extends StatefulWidget {
   final JellyfinPlaylist playlist;
@@ -84,7 +87,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
     }
   }
 
-  void _handleShuffle() {
+  void _handleShuffle() async {
     if (_songs == null || _songs!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No songs to shuffle')),
@@ -94,10 +97,23 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
 
     final shuffled = ShuffleHelper.shuffleSongs(_songs!);
 
-    // TODO: Start playback with shuffled queue
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Shuffling ${shuffled.length} songs from ${widget.playlist.name}')),
+    // Start playback with shuffled queue
+    final player = Provider.of<PlayerProvider>(context, listen: false);
+    final auth = await _settingsService.getAuth();
+
+    player.audioService.setServerInfo(
+      widget.server,
+      auth,
+      isOfflineMode: false, // Playlists only work online for now
     );
+
+    await player.audioService.playQueue(shuffled);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Shuffling ${shuffled.length} songs from ${widget.playlist.name}')),
+      );
+    }
   }
 
   Future<void> _handleDownload() async {
@@ -277,11 +293,18 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                                     style: TextStyle(color: Colors.grey[600]),
                                   )
                                 : null,
-                            onTap: () {
-                              // TODO: Play the song
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Playing ${song.name}')),
+                            onTap: () async {
+                              // Play the song
+                              final player = Provider.of<PlayerProvider>(context, listen: false);
+                              final auth = await _settingsService.getAuth();
+
+                              player.audioService.setServerInfo(
+                                widget.server,
+                                auth,
+                                isOfflineMode: false,
                               );
+
+                              await player.audioService.playQueue(_songs!, startIndex: index);
                             },
                           );
                         },
@@ -290,7 +313,11 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                     ),
         ],
       ),
-      bottomNavigationBar: BottomAppBar(
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const MiniPlayer(),
+          BottomAppBar(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: Row(
@@ -341,6 +368,8 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
             ],
           ),
         ),
+          ),
+        ],
       ),
     );
   }

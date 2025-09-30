@@ -356,4 +356,24 @@ class JellyfinService {
     _auth = null;
     _server = null;
   }
+
+  /// Check if the server is reachable
+  Future<bool> isServerReachable() async {
+    if (_server == null) return false;
+
+    try {
+      final url = Uri.parse('${_server!.baseUrl}/System/Ping');
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          throw Exception('Connection timeout');
+        },
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('DEBUG: Server unreachable: $e');
+      return false;
+    }
+  }
 }

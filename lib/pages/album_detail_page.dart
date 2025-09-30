@@ -1,20 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/jellyfin_album.dart';
 import '../models/jellyfin_server.dart';
 import '../models/jellyfin_song.dart';
 import '../services/jellyfin_service.dart';
 import '../services/settings_service.dart';
 import '../services/download_service.dart';
+import '../services/offline_service.dart';
 import '../utils/shuffle_helper.dart';
+import '../widgets/mini_player.dart';
+import '../providers/player_provider.dart';
 
 class AlbumDetailPage extends StatefulWidget {
   final JellyfinAlbum album;
   final JellyfinServer server;
+  final bool isOfflineMode;
 
   const AlbumDetailPage({
     super.key,
     required this.album,
     required this.server,
+    this.isOfflineMode = false,
   });
 
   @override
@@ -25,6 +31,7 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
   final _jellyfinService = JellyfinService();
   final _settingsService = SettingsService();
   final _downloadService = DownloadService();
+  final _offlineService = OfflineService();
   List<JellyfinSong>? _songs;
   bool _isLoading = true;
   bool _isDownloaded = false;
@@ -50,13 +57,21 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
     });
 
     try {
-      // Load auth and set it on the service
-      final auth = await _settingsService.getAuth();
-      if (auth != null) {
-        _jellyfinService.setAuth(auth, widget.server);
+      List<JellyfinSong> songs;
+
+      if (widget.isOfflineMode) {
+        // Load from offline storage
+        songs = await _offlineService.getDownloadedSongs(widget.album.id);
+      } else {
+        // Load auth and set it on the service
+        final auth = await _settingsService.getAuth();
+        if (auth != null) {
+          _jellyfinService.setAuth(auth, widget.server);
+        }
+
+        songs = await _jellyfinService.getSongsByAlbum(widget.album.id);
       }
 
-      final songs = await _jellyfinService.getSongsByAlbum(widget.album.id);
       setState(() {
         _songs = songs;
         _isLoading = false;
@@ -123,10 +138,25 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
 
     final shuffled = ShuffleHelper.shuffleSongs(_songs!);
 
-    // TODO: Start playback with shuffled queue
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Shuffling ${shuffled.length} songs from ${widget.album.name}')),
-    );
+    // Get player provider and start playback
+    final player = Provider.of<PlayerProvider>(context, listen: false);
+    final auth = _settingsService.getAuth();
+
+    // Set server info for playback
+    auth.then((a) {
+      player.audioService.setServerInfo(
+        widget.server,
+        a,
+        isOfflineMode: widget.isOfflineMode,
+      );
+
+      // Start playback with shuffled queue
+      player.audioService.playQueue(shuffled);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Shuffling ${shuffled.length} songs from ${widget.album.name}')),
+      );
+    });
   }
 
   Future<void> _handleDownload() async {
@@ -272,11 +302,22 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                     style: TextStyle(color: Colors.grey[600]),
                   )
                 : null,
-            onTap: () {
-              // TODO: Play the song
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Playing ${song.name}')),
+            onTap: () async {
+              // Play the song
+              final player = Provider.of<PlayerProvider>(context, listen: false);
+              final auth = await _settingsService.getAuth();
+
+              player.audioService.setServerInfo(
+                widget.server,
+                auth,
+                isOfflineMode: widget.isOfflineMode,
               );
+
+              // Find the index of this song in the full song list
+              final songIndex = _songs!.indexOf(song);
+              if (songIndex != -1) {
+                await player.audioService.playQueue(_songs!, startIndex: songIndex);
+              }
             },
           ),
         );
@@ -388,38 +429,49 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
                   : _buildSongList(),
         ],
       ),
-      bottomNavigationBar: BottomAppBar(
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const MiniPlayer(),
+          BottomAppBar(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Download button on the left
-              _isDownloaded
-                  ? IconButton(
-                      icon: Badge(
-                        backgroundColor: Colors.green,
-                        label: const Icon(
-                          Icons.check,
-                          size: 12,
-                          color: Colors.white,
+              // Offline indicator or download button on the left
+              if (widget.isOfflineMode)
+                IconButton(
+                  icon: const Icon(Icons.cloud_off),
+                  tooltip: 'Offline mode',
+                  onPressed: null, // Disabled, just an indicator
+                )
+              else
+                _isDownloaded
+                    ? IconButton(
+                        icon: Badge(
+                          backgroundColor: Colors.green,
+                          label: const Icon(
+                            Icons.check,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                          child: const Icon(Icons.download),
                         ),
-                        child: const Icon(Icons.download),
+                        tooltip: 'Already downloaded',
+                        onPressed: null, // Disabled when downloaded
+                      )
+                    : IconButton(
+                        icon: _isDownloading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.download),
+                        tooltip: 'Download album',
+                        onPressed: _isLoading || _isDownloading ? null : _handleDownload,
                       ),
-                      tooltip: 'Already downloaded',
-                      onPressed: null, // Disabled when downloaded
-                    )
-                  : IconButton(
-                      icon: _isDownloading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.download),
-                      tooltip: 'Download album',
-                      onPressed: _isLoading || _isDownloading ? null : _handleDownload,
-                    ),
               // Shuffle and refresh on the right
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -439,6 +491,8 @@ class _AlbumDetailPageState extends State<AlbumDetailPage> {
             ],
           ),
         ),
+          ),
+        ],
       ),
     );
   }
