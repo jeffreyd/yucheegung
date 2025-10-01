@@ -7,14 +7,20 @@
 > Most of this README was written by Claude Code. It may contain errors or inaccuracies.
 
 ## About (written by a human)
-Guess who's back in the motherfuckin' house with a JellyFin app for your motherfucking phone?
+Guess who's back in the motherfuckin' house with a JellyFin app for your motherfuckin' phone?
 Yep, I'm back again with another _entirely_ AI-generated app. There's a number of JellyFin
 music players out there, not least of which is [FinAmp](https://github.com/jmshrv/finamp),
 which is great, but none of them really worked like I want them to so I had Claude write
-one for me. _Very_ simple navigation, with Artist -> Album -> Song and the ability to shuffle
-entire artists or albums which will loop forever. I mostly use this on the rare occasion I
-want to listen to music in the car or, my primary usage, listening to the audio from TV shows
-ripped to MP3 while I sleep. As such, it's not very feature-full.
+one for me. _Very_ simple navigation, with Playlists or Artist -> Album -> Song and the
+ability to shuffle entire artists or albums (or playlists) which will loop forever. I mostly
+use this on the rare occasion I want to listen to music in the car or, my primary usage,
+listening to the audio from TV shows ripped to MP3 while I sleep. As such, it's not very
+feature-full.
+
+This is designed to be used on a [LineageOS](https://lineageos.org/) phone. I don't have one
+yet as I'm currently (2025-09-30) waiting out the 7-day OEM unlock waiting period on my
+Moto G 5G (2024), but I'm dogfooding it on a Moto G Power (2025) in the meantime running full
+fat Tom Google Android.
 
 ## Key Features
 
@@ -26,8 +32,10 @@ ripped to MP3 while I sleep. As such, it's not very feature-full.
 - **Playlist Support**: Browse and play your Jellyfin playlists
 - **Material Design 3**: Modern UI following Material Design 3 guidelines
 - **Persistent Mini Player**: Always-visible mini player for quick playback controls
-- **Auto-Advance**: Automatically plays the next song in the queue
+- **Infinite Looping**: Queues automatically loop back to the beginning when finished
 - **Server Unreachable Detection**: Automatically switches to offline mode when server is unavailable
+- **Android Auto Support**: Media controls and notifications for Android Auto integration
+- **Library-Organized Downloads**: Downloads are organized into library-specific folders
 
 ## Technical Details
 
@@ -112,6 +120,9 @@ The app requires the following Android permissions:
 - `WRITE_EXTERNAL_STORAGE` - For saving downloads
 - `READ_MEDIA_AUDIO` - For Android 13+ media access
 - `MANAGE_EXTERNAL_STORAGE` - For managing download directories
+- `FOREGROUND_SERVICE` - For background audio playback
+- `FOREGROUND_SERVICE_MEDIA_PLAYBACK` - For media playback service
+- `WAKE_LOCK` - For keeping audio playing when screen is off
 
 ### HTTP Cleartext Traffic
 
@@ -170,15 +181,18 @@ The app supports HTTP (cleartext) traffic to allow connections to local Jellyfin
 
 ### Audio Playback
 
-The app uses the `just_audio` package with:
+The app uses the `just_audio` package with `audio_service` for background playback:
 - **Streaming**: Uses Jellyfin's universal endpoint with automatic transcoding to AAC
 - **Offline**: Plays from local files stored in the download directory
 - **Queue Management**: Maintains a playback queue with next/previous navigation
-- **Auto-Advance**: Automatically plays the next song when the current one finishes
+- **Infinite Looping**: Automatically loops back to the first song when the queue finishes
+- **Background Playback**: Continues playing when app is in background or screen is off
+- **Media Controls**: System media notifications and Android Auto integration
 
 ### Download System
 
-- Downloads are organized: `DownloadLocation/ArtistName/AlbumName/DiscNumber-TrackNumber - SongName.ext`
+- Downloads are organized: `DownloadLocation/LibraryName/ArtistName/AlbumName/DiscNumber-TrackNumber - SongName.ext`
+- Library-specific folders keep downloads from different libraries organized
 - SQLite database tracks downloaded items and their file paths
 - Supports downloading individual albums, entire playlists, or all albums by an artist
 - Filenames are sanitized to remove invalid characters
@@ -206,11 +220,16 @@ The app communicates with Jellyfin using:
 Built with:
 - [Flutter](https://flutter.dev/) - UI framework
 - [just_audio](https://pub.dev/packages/just_audio) - Audio playback
+- [audio_service](https://pub.dev/packages/audio_service) - Background playback and Android Auto
 - [sqflite](https://pub.dev/packages/sqflite) - Local database
 - [provider](https://pub.dev/packages/provider) - State management
 - [shared_preferences](https://pub.dev/packages/shared_preferences) - Settings storage
-- [http](https://pub.dev/packages/http) - HTTP client
+- [http](https://pub.dev/packages/http) & [dio](https://pub.dev/packages/dio) - HTTP clients
 - [file_picker](https://pub.dev/packages/file_picker) - Directory selection
 - [permission_handler](https://pub.dev/packages/permission_handler) - Android permissions
 
 Designed for use with [Jellyfin](https://jellyfin.org/) media server.
+
+## LineageOS Compatibility
+
+This app is fully compatible with LineageOS and does not require Google Play Services. All dependencies use AOSP (Android Open Source Project) APIs and will work on de-Googled Android systems.
