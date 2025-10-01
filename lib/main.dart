@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:just_audio/just_audio.dart';
 import 'pages/first_run_page.dart';
 import 'pages/home_page.dart';
 import 'services/settings_service.dart';
+import 'services/audio_player_service.dart';
 import 'providers/player_provider.dart';
 
 void main() async {
@@ -16,8 +18,8 @@ void main() async {
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.yucheegung.audio',
         androidNotificationChannelName: 'YuCheeGung Audio',
-        androidNotificationOngoing: true,
-        androidStopForegroundOnPause: true,
+        androidNotificationOngoing: false,
+        androidStopForegroundOnPause: false, // Keep playing when paused
       ),
     );
   } catch (e) {
@@ -33,9 +35,14 @@ void main() async {
   );
 }
 
-/// Audio handler for Android Auto integration
+/// Audio handler for Android Auto integration - bridges just_audio with audio_service
 class AudioPlayerHandler extends BaseAudioHandler {
+  final _audioPlayerService = AudioPlayerService();
+  late final AudioPlayer _player;
+
   AudioPlayerHandler() {
+    _player = _audioPlayerService.player;
+
     // Set initial playback state
     playbackState.add(playbackState.value.copyWith(
       controls: [
@@ -46,32 +53,58 @@ class AudioPlayerHandler extends BaseAudioHandler {
       ],
       processingState: AudioProcessingState.idle,
     ));
+
+    // Sync player state to audio service
+    _player.playbackEventStream.listen((event) {
+      playbackState.add(playbackState.value.copyWith(
+        controls: [
+          MediaControl.skipToPrevious,
+          if (_player.playing) MediaControl.pause else MediaControl.play,
+          MediaControl.skipToNext,
+        ],
+        processingState: {
+          ProcessingState.idle: AudioProcessingState.idle,
+          ProcessingState.loading: AudioProcessingState.loading,
+          ProcessingState.buffering: AudioProcessingState.buffering,
+          ProcessingState.ready: AudioProcessingState.ready,
+          ProcessingState.completed: AudioProcessingState.completed,
+        }[_player.processingState]!,
+        playing: _player.playing,
+        updatePosition: _player.position,
+        bufferedPosition: _player.bufferedPosition,
+        speed: _player.speed,
+      ));
+    });
   }
 
   @override
   Future<void> play() async {
-    playbackState.add(playbackState.value.copyWith(
-      playing: true,
-      processingState: AudioProcessingState.ready,
-    ));
+    await _audioPlayerService.play();
   }
 
   @override
   Future<void> pause() async {
-    playbackState.add(playbackState.value.copyWith(
-      playing: false,
-      processingState: AudioProcessingState.ready,
-    ));
+    await _audioPlayerService.pause();
   }
 
   @override
   Future<void> skipToNext() async {
-    // Handled by AudioPlayerService
+    await _audioPlayerService.skipNext();
   }
 
   @override
   Future<void> skipToPrevious() async {
-    // Handled by AudioPlayerService
+    await _audioPlayerService.skipPrevious();
+  }
+
+  @override
+  Future<void> seek(Duration position) async {
+    await _audioPlayerService.seek(position);
+  }
+
+  @override
+  Future<void> stop() async {
+    await _audioPlayerService.stop();
   }
 }
 

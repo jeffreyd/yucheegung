@@ -202,14 +202,14 @@ class AudioPlayerService {
 
   /// Set up listener for when a song completes
   void setupAutoAdvance() {
-    _player.playerStateStream.listen((state) {
+    _player.playerStateStream.listen((state) async {
       if (state.processingState == ProcessingState.completed) {
         // Automatically advance to next song, or loop back to start
         if (hasNext) {
-          skipNext();
+          await skipNext();
         } else if (_queue.isNotEmpty) {
           // Loop back to the beginning
-          _playSongAtIndex(0);
+          await _playSongAtIndex(0);
         }
       }
     });
@@ -236,6 +236,7 @@ class AudioPlayerService {
 
     try {
       await AudioService.updateMediaItem(mediaItem);
+      print('DEBUG: Updated media item: ${song.name}');
     } catch (e) {
       // AudioService might not be initialized, that's okay
       print('DEBUG: Could not update media item: $e');

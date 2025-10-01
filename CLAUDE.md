@@ -6,6 +6,7 @@ A Flutter application for playing and downloading audio from Jellyfin servers.
 
 **Organization**: `org.jeffreyd`
 **Flutter Version**: 3.35.4
+**Version**: 1.0.0+2
 
 ## Features Implemented
 
@@ -34,10 +35,16 @@ A Flutter application for playing and downloading audio from Jellyfin servers.
 - Drawer navigation for library switching and logout
 - SliverAppBar with expandable album art
 
-### 5. Shuffle Functionality
+### 5. Audio Playback
+- Full playback controls (play, pause, skip, seek)
+- Queue management with auto-advance
+- Background playback with screen off
+- Media notifications and controls
+- Android Auto integration via audio_service
+
+### 6. Shuffle Functionality
 - Fisher-Yates shuffle algorithm for proper randomization
 - Available at album and playlist levels
-- Prepares queue for future playback integration
 
 ## Architecture
 
@@ -54,6 +61,10 @@ A Flutter application for playing and downloading audio from Jellyfin servers.
 - `SettingsService` - Persistent settings with SharedPreferences
 - `JellyfinService` - Jellyfin API integration
 - `CacheService` - In-memory caching with expiration
+- `AudioPlayerService` - Audio playback with just_audio (singleton)
+
+### Providers
+- `PlayerProvider` - UI state management for playback controls
 
 ### Pages
 - `FirstRunPage` - Initial server setup
@@ -100,22 +111,36 @@ Accepts various formats:
 - Single-disc albums show clean song list
 - Maintains track number display in all cases
 
+### Audio Service Integration
+- `AudioPlayerHandler` bridges just_audio with audio_service
+- Syncs player state to audio service via playbackEventStream
+- Maintains media session for background playback
+- Configuration: `androidStopForegroundOnPause: false` keeps playback alive with screen off
+- Media controls work from notifications and lock screen
+
 ## Known Issues & Future Work
 
+### Recently Fixed
+- [x] Audio playback stops after first track (2025-10-01)
+  - **Issue**: Player would play first track then stop, not advancing to next
+  - **Cause**: `setupAutoAdvance()` listener wasn't awaiting async calls to `skipNext()` and `_playSongAtIndex()`
+  - **Fix**: Made listener callback async and added await keywords (audio_player_service.dart:205-215)
+
+- [x] Background playback stops with screen off (2025-10-01)
+  - **Issue**: UI updated but audio stopped playing when screen turned off
+  - **Cause**: AudioPlayerHandler wasn't controlling the actual player, no active media session
+  - **Fix**: Connected AudioPlayerHandler to AudioPlayerService singleton, synced player state to audio_service via playbackEventStream (main.dart:39-109)
+
 ### Not Yet Implemented
-- [ ] Actual audio playback (currently shows snackbar placeholders)
 - [ ] Download functionality for offline playback
-- [ ] Audio service integration
-- [ ] Queue management
-- [ ] Player controls
 
 ### Dependencies Ready for Future Features
-- `just_audio` - Audio playback
-- `audio_service` - Background audio
+- `just_audio` - Audio playback (✓ IN USE)
+- `audio_service` - Background audio and Android Auto (✓ IN USE)
+- `provider` - State management (✓ IN USE)
 - `flutter_downloader` - File downloads
 - `path_provider` - Local file storage
 - `dio` - Advanced HTTP client
-- `provider` - State management
 
 ## Critical Fixes Applied
 
