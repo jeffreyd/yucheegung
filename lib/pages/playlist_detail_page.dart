@@ -4,6 +4,7 @@ import '../models/jellyfin_playlist.dart';
 import '../models/jellyfin_server.dart';
 import '../models/jellyfin_song.dart';
 import '../services/jellyfin_service.dart';
+import '../services/offline_service.dart';
 import '../services/settings_service.dart';
 import '../services/download_service.dart';
 import '../utils/shuffle_helper.dart';
@@ -14,12 +15,14 @@ class PlaylistDetailPage extends StatefulWidget {
   final JellyfinPlaylist playlist;
   final JellyfinServer server;
   final String? libraryName;
+  final bool isOfflineMode;
 
   const PlaylistDetailPage({
     super.key,
     required this.playlist,
     required this.server,
     this.libraryName,
+    this.isOfflineMode = false,
   });
 
   @override
@@ -28,6 +31,7 @@ class PlaylistDetailPage extends StatefulWidget {
 
 class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   final _jellyfinService = JellyfinService();
+  final _offlineService = OfflineService();
   final _settingsService = SettingsService();
   final _downloadService = DownloadService();
   List<JellyfinSong>? _songs;
@@ -55,12 +59,20 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
     });
 
     try {
-      final auth = await _settingsService.getAuth();
-      if (auth != null) {
-        _jellyfinService.setAuth(auth, widget.server);
+      List<JellyfinSong> songs;
+
+      if (widget.isOfflineMode) {
+        // Load downloaded songs
+        songs = await _offlineService.getDownloadedSongs(widget.playlist.id);
+      } else {
+        // Load from server
+        final auth = await _settingsService.getAuth();
+        if (auth != null) {
+          _jellyfinService.setAuth(auth, widget.server);
+        }
+        songs = await _jellyfinService.getSongsByAlbum(widget.playlist.id);
       }
 
-      final songs = await _jellyfinService.getSongsByAlbum(widget.playlist.id);
       setState(() {
         _songs = songs;
         _isLoading = false;

@@ -34,6 +34,7 @@ class _HomePageState extends State<HomePage> {
   List<JellyfinArtist>? _artists;
   bool _isLoadingArtists = false;
   bool _isOfflineMode = false;
+  bool _hasOfflinePlaylists = false;
 
   @override
   void initState() {
@@ -50,30 +51,31 @@ class _HomePageState extends State<HomePage> {
       final server = await _settingsService.getServer();
       final auth = await _settingsService.getAuth();
       final selectedIds = await _settingsService.getSelectedLibraries();
+      final isOfflineMode = await _settingsService.getOfflineMode();
 
-      print('DEBUG: server=${server?.baseUrl}, auth=${auth != null ? "present" : "null"}, selectedIds=$selectedIds');
+      print('DEBUG: server=${server?.baseUrl}, auth=${auth != null ? "present" : "null"}, selectedIds=$selectedIds, offlineMode=$isOfflineMode');
+
+      // Check if user has manually enabled offline mode FIRST
+      if (isOfflineMode) {
+        print('DEBUG: Manual offline mode enabled, skipping server queries');
+        if (server != null) {
+          _server = server;
+        }
+        setState(() {
+          _isOfflineMode = true;
+          _isLoading = false;
+        });
+
+        // Load offline artists
+        await _loadOfflineArtists();
+        return;
+      }
 
       if (server != null && auth != null) {
         _server = server;
         _selectedLibraryIds = selectedIds;
 
         _jellyfinService.setAuth(auth, server);
-
-        // Check if server is reachable
-        final isReachable = await _jellyfinService.isServerReachable();
-
-        if (!isReachable) {
-          // Enter offline mode
-          print('DEBUG: Server unreachable, entering offline mode');
-          setState(() {
-            _isOfflineMode = true;
-            _isLoading = false;
-          });
-
-          // Load offline artists
-          await _loadOfflineArtists();
-          return;
-        }
 
         final libraries = await _jellyfinService.getMusicLibraries();
 
@@ -163,12 +165,23 @@ class _HomePageState extends State<HomePage> {
 
     try {
       final artists = await _offlineService.getDownloadedArtists();
+      final playlists = await _offlineService.getDownloadedPlaylists();
+
+      print('DEBUG: Loaded offline - ${artists.length} artists, ${playlists.length} playlists');
+      for (var artist in artists) {
+        print('DEBUG: Offline artist: ${artist.name}');
+      }
+      for (var playlist in playlists) {
+        print('DEBUG: Offline playlist: ${playlist.name}');
+      }
+
       setState(() {
         _artists = artists;
+        _hasOfflinePlaylists = playlists.isNotEmpty;
         _isLoadingArtists = false;
       });
 
-      if (mounted && artists.isEmpty) {
+      if (mounted && artists.isEmpty && playlists.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No downloaded content available offline'),
@@ -177,6 +190,7 @@ class _HomePageState extends State<HomePage> {
         );
       }
     } catch (e) {
+      print('DEBUG: Error loading offline artists: $e');
       setState(() {
         _isLoadingArtists = false;
       });
@@ -237,6 +251,35 @@ class _HomePageState extends State<HomePage> {
 
     Navigator.of(context).pop(); // Close drawer
     _loadArtists(libraryId); // Load artists for the selected library
+  }
+
+  Future<void> _toggleOfflineMode() async {
+    final newMode = !_isOfflineMode;
+    await _settingsService.setOfflineMode(newMode);
+
+    setState(() {
+      _isOfflineMode = newMode;
+    });
+
+    Navigator.of(context).pop(); // Close drawer
+
+    if (newMode) {
+      // Going offline
+      await _loadOfflineArtists();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Switched to offline mode')),
+        );
+      }
+    } else {
+      // Going online
+      await _loadData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Switched to online mode')),
+        );
+      }
+    }
   }
 
   Future<void> _handleRefresh() async {
@@ -353,6 +396,14 @@ class _HomePageState extends State<HomePage> {
               const Divider(),
             ],
             ListTile(
+              leading: Icon(
+                Icons.cloud_off,
+                color: _isOfflineMode ? Colors.green : null,
+              ),
+              title: Text(_isOfflineMode ? 'Go Online' : 'Go Offline'),
+              onTap: _toggleOfflineMode,
+            ),
+            ListTile(
               leading: const Icon(Icons.download),
               title: const Text('Download Settings'),
               onTap: () {
@@ -416,7 +467,39 @@ class _HomePageState extends State<HomePage> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    print('DEBUG: _buildArtistList - artists=${_artists?.length}, isOffline=$_isOfflineMode, hasOfflinePlaylists=$_hasOfflinePlaylists');
+
+    // In offline mode with no artists but has playlists, show the playlist entry
     if (_artists == null || _artists!.isEmpty) {
+      if (_isOfflineMode && _hasOfflinePlaylists) {
+        // Show just the playlists entry
+        return ListView(
+          children: [
+            ListTile(
+              leading: const CircleAvatar(
+                child: Icon(Icons.playlist_play),
+              ),
+              title: const Text(
+                '-- Playlists --',
+                style: TextStyle(fontStyle: FontStyle.italic),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => PlaylistListPage(
+                      server: _server!,
+                      libraryName: _currentLibrary?.name,
+                      isOfflineMode: _isOfflineMode,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      }
+
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -441,14 +524,17 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    // In offline mode, don't add playlist item
-    final int itemCount = _isOfflineMode ? _artists!.length : _artists!.length + 1;
+    // Add playlist item if online OR if offline with downloaded playlists
+    final showPlaylists = !_isOfflineMode || _hasOfflinePlaylists;
+    final int itemCount = showPlaylists ? _artists!.length + 1 : _artists!.length;
+
+    print('DEBUG: showPlaylists=$showPlaylists, itemCount=$itemCount');
 
     return ListView.builder(
       itemCount: itemCount,
       itemBuilder: (context, index) {
-        // First item is the playlists link (only in online mode)
-        if (!_isOfflineMode && index == 0) {
+        // First item is the playlists link
+        if (showPlaylists && index == 0) {
           return ListTile(
             leading: const CircleAvatar(
               child: Icon(Icons.playlist_play),
@@ -464,6 +550,7 @@ class _HomePageState extends State<HomePage> {
                   builder: (context) => PlaylistListPage(
                     server: _server!,
                     libraryName: _currentLibrary?.name,
+                    isOfflineMode: _isOfflineMode,
                   ),
                 ),
               );
@@ -471,8 +558,8 @@ class _HomePageState extends State<HomePage> {
           );
         }
 
-        // Regular artist items (offset by 1 in online mode, 0 in offline mode)
-        final artistIndex = _isOfflineMode ? index : index - 1;
+        // Regular artist items (offset by 1 if playlists are shown)
+        final artistIndex = showPlaylists ? index - 1 : index;
         final artist = _artists![artistIndex];
         final imageUrl = _server != null ? artist.getImageUrl(_server!.baseUrl) : null;
 

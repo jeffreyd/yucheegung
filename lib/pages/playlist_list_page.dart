@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import '../models/jellyfin_playlist.dart';
 import '../models/jellyfin_server.dart';
 import '../services/jellyfin_service.dart';
+import '../services/offline_service.dart';
 import '../services/settings_service.dart';
 import 'playlist_detail_page.dart';
 
 class PlaylistListPage extends StatefulWidget {
   final JellyfinServer server;
   final String? libraryName;
+  final bool isOfflineMode;
 
   const PlaylistListPage({
     super.key,
     required this.server,
     this.libraryName,
+    this.isOfflineMode = false,
   });
 
   @override
@@ -21,6 +24,7 @@ class PlaylistListPage extends StatefulWidget {
 
 class _PlaylistListPageState extends State<PlaylistListPage> {
   final _jellyfinService = JellyfinService();
+  final _offlineService = OfflineService();
   final _settingsService = SettingsService();
   List<JellyfinPlaylist>? _playlists;
   bool _isLoading = true;
@@ -37,12 +41,20 @@ class _PlaylistListPageState extends State<PlaylistListPage> {
     });
 
     try {
-      final auth = await _settingsService.getAuth();
-      if (auth != null) {
-        _jellyfinService.setAuth(auth, widget.server);
+      List<JellyfinPlaylist> playlists;
+
+      if (widget.isOfflineMode) {
+        // Load downloaded playlists
+        playlists = await _offlineService.getDownloadedPlaylists();
+      } else {
+        // Load from server
+        final auth = await _settingsService.getAuth();
+        if (auth != null) {
+          _jellyfinService.setAuth(auth, widget.server);
+        }
+        playlists = await _jellyfinService.getPlaylists();
       }
 
-      final playlists = await _jellyfinService.getPlaylists();
       setState(() {
         _playlists = playlists;
         _isLoading = false;
@@ -137,6 +149,7 @@ class _PlaylistListPageState extends State<PlaylistListPage> {
                               playlist: playlist,
                               server: widget.server,
                               libraryName: widget.libraryName,
+                              isOfflineMode: widget.isOfflineMode,
                             ),
                           ),
                         );

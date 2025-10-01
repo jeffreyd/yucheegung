@@ -11,6 +11,7 @@ class SettingsService {
   static const String _keyDownloadLocation = 'download_location';
   static const String _keyCurrentLibrary = 'current_library';
   static const String _keyDownloadedItems = 'downloaded_items';
+  static const String _keyOfflineMode = 'offline_mode';
 
   Future<bool> isFirstRun() async {
     final prefs = await SharedPreferences.getInstance();
@@ -85,6 +86,16 @@ class SettingsService {
   Future<String?> getCurrentLibrary() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyCurrentLibrary);
+  }
+
+  Future<void> setOfflineMode(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyOfflineMode, enabled);
+  }
+
+  Future<bool> getOfflineMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyOfflineMode) ?? false;
   }
 
   Future<void> clearAll() async {
