@@ -6,7 +6,7 @@ A Flutter application for playing and downloading audio from Jellyfin servers.
 
 **Organization**: `org.jeffreyd`
 **Flutter Version**: 3.35.4
-**Version**: 1.0.0+2
+**Version**: 1.0.1+4
 
 ## Features Implemented
 
@@ -41,6 +41,8 @@ A Flutter application for playing and downloading audio from Jellyfin servers.
 - Background playback with screen off
 - Media notifications and controls
 - Android Auto integration via audio_service
+- Robust error handling with retry logic
+- Error state tracking and user notification
 
 ### 6. Shuffle Functionality
 - Fisher-Yates shuffle algorithm for proper randomization
@@ -64,7 +66,10 @@ A Flutter application for playing and downloading audio from Jellyfin servers.
 - `AudioPlayerService` - Audio playback with just_audio (singleton)
 
 ### Providers
-- `PlayerProvider` - UI state management for playback controls
+- `PlayerProvider` - UI state management for playback controls and error state
+
+### Widgets
+- `MiniPlayer` - Bottom playback bar with controls, progress, and error banner
 
 ### Pages
 - `FirstRunPage` - Initial server setup
@@ -118,9 +123,33 @@ Accepts various formats:
 - Configuration: `androidStopForegroundOnPause: false` keeps playback alive with screen off
 - Media controls work from notifications and lock screen
 
+### Error Handling & Retry Logic
+- Exponential backoff retry for network failures (1s, 2s, 4s delays)
+- Up to 3 retry attempts per track before giving up
+- Auto-advance wrapped in try-catch to prevent silent failures
+- Failed tracks automatically skipped to continue playback
+- Single auto-advance listener setup (prevents duplicate listeners)
+- Error state exposed to UI via `PlayerProvider`
+- Error banner in mini player with dismiss functionality
+- Errors include context (song name, error details)
+
 ## Known Issues & Future Work
 
 ### Recently Fixed
+- [x] Playback stops unexpectedly during auto-advance (2025-10-02)
+  - **Issue**: Playback would randomly stop between tracks, especially overnight, with no error shown to user
+  - **Cause**: Multiple issues:
+    - No error handling in auto-advance listener - network/server errors silently killed playback
+    - No retry logic for transient network failures
+    - Multiple auto-advance listeners stacking up from repeated `PlayerProvider` initialization
+    - Errors rethrown without recovery path during auto-advance
+  - **Fix**: Comprehensive error handling system (audio_player_service.dart, player_provider.dart, mini_player.dart)
+    - Added exponential backoff retry (3 attempts per track)
+    - Wrapped auto-advance in try-catch with fallback to skip failed tracks
+    - Single-setup guard for auto-advance listener
+    - Error state tracking and UI notification
+    - Error banner in mini player with dismiss option
+
 - [x] Audio playback stops after first track (2025-10-01)
   - **Issue**: Player would play first track then stop, not advancing to next
   - **Cause**: `setupAutoAdvance()` listener wasn't awaiting async calls to `skipNext()` and `_playSongAtIndex()`

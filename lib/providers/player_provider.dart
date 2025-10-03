@@ -37,11 +37,13 @@ class PlayerProvider extends ChangeNotifier {
   Duration get position => _audioService.player.position;
   Duration? get duration => _audioService.player.duration;
   PlayerState get playerState => _audioService.player.playerState;
+  String? get lastError => _audioService.lastError;
 
   // Convenience getters
   bool get hasQueue => queue.isNotEmpty;
   bool get isBuffering => playerState.processingState == ProcessingState.buffering ||
       playerState.processingState == ProcessingState.loading;
+  bool get hasError => lastError != null;
 
   // Actions
   Future<void> togglePlayPause() async {
@@ -66,6 +68,11 @@ class PlayerProvider extends ChangeNotifier {
 
   Future<void> stop() async {
     await _audioService.stop();
+    notifyListeners();
+  }
+
+  void clearError() {
+    _audioService.clearError();
     notifyListeners();
   }
 

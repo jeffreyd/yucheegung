@@ -40,6 +40,34 @@ class MiniPlayer extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Error banner
+              if (player.hasError)
+                Container(
+                  width: double.infinity,
+                  color: Colors.red[700],
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.white, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          player.lastError ?? 'Unknown error',
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white, size: 16),
+                        onPressed: () => player.clearError(),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        iconSize: 16,
+                      ),
+                    ],
+                  ),
+                ),
               // Progress bar
               StreamBuilder<Duration>(
                 stream: player.audioService.player.positionStream,

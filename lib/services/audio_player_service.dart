@@ -19,6 +19,10 @@ class AudioPlayerService {
   JellyfinServer? _server;
   JellyfinAuth? _auth;
   bool _isOfflineMode = false;
+  bool _autoAdvanceSetup = false;
+  String? _lastError;
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
 
   // Getters
   AudioPlayer get player => _player;
@@ -29,12 +33,18 @@ class AudioPlayerService {
       : null;
   bool get hasNext => _currentIndex < _queue.length - 1;
   bool get hasPrevious => _currentIndex > 0;
+  String? get lastError => _lastError;
 
   /// Initialize the player with server and auth info
   void setServerInfo(JellyfinServer server, JellyfinAuth? auth, {bool isOfflineMode = false}) {
     _server = server;
     _auth = auth;
     _isOfflineMode = isOfflineMode;
+  }
+
+  /// Clear the last error
+  void clearError() {
+    _lastError = null;
   }
 
   /// Play a queue of songs starting at a specific index
@@ -55,8 +65,8 @@ class AudioPlayerService {
     await playQueue([song], startIndex: 0);
   }
 
-  /// Play the song at a specific index in the queue
-  Future<void> _playSongAtIndex(int index) async {
+  /// Play the song at a specific index in the queue with retry logic
+  Future<void> _playSongAtIndex(int index, {int retryCount = 0}) async {
     if (index < 0 || index >= _queue.length) return;
 
     _currentIndex = index;
@@ -99,6 +109,10 @@ class AudioPlayerService {
 
       // Start playback
       await _player.play();
+
+      // Clear error and retry count on success
+      _lastError = null;
+      _retryCount = 0;
     } catch (e, stackTrace) {
       print('DEBUG: Error playing song: $e');
       print('DEBUG: Stack trace: $stackTrace');
@@ -107,7 +121,21 @@ class AudioPlayerService {
       print('DEBUG: Player state: ${_player.playerState}');
       print('DEBUG: Processing state: ${_player.playerState.processingState}');
 
-      rethrow;
+      // Store error
+      _lastError = 'Failed to play ${song.name}: $e';
+
+      // Implement retry logic with exponential backoff
+      if (retryCount < _maxRetries) {
+        final delayMs = 1000 * (1 << retryCount); // 1s, 2s, 4s
+        print('DEBUG: Retrying in ${delayMs}ms (attempt ${retryCount + 1}/$_maxRetries)');
+
+        await Future.delayed(Duration(milliseconds: delayMs));
+        await _playSongAtIndex(index, retryCount: retryCount + 1);
+      } else {
+        print('DEBUG: Max retries reached, giving up on song');
+        _retryCount = 0;
+        rethrow;
+      }
     }
   }
 
@@ -200,16 +228,49 @@ class AudioPlayerService {
     await _player.dispose();
   }
 
-  /// Set up listener for when a song completes
+  /// Set up listener for when a song completes (only sets up once)
   void setupAutoAdvance() {
+    if (_autoAdvanceSetup) {
+      print('DEBUG: Auto-advance already set up, skipping');
+      return;
+    }
+
+    print('DEBUG: Setting up auto-advance listener');
+    _autoAdvanceSetup = true;
+
     _player.playerStateStream.listen((state) async {
       if (state.processingState == ProcessingState.completed) {
-        // Automatically advance to next song, or loop back to start
-        if (hasNext) {
-          await skipNext();
-        } else if (_queue.isNotEmpty) {
-          // Loop back to the beginning
-          await _playSongAtIndex(0);
+        print('DEBUG: Song completed, auto-advancing...');
+
+        try {
+          // Automatically advance to next song, or loop back to start
+          if (hasNext) {
+            await skipNext();
+          } else if (_queue.isNotEmpty) {
+            // Loop back to the beginning
+            await _playSongAtIndex(0);
+          }
+        } catch (e, stackTrace) {
+          print('DEBUG: Error during auto-advance: $e');
+          print('DEBUG: Stack trace: $stackTrace');
+
+          // Store error for UI to display
+          _lastError = 'Failed to auto-advance: $e';
+
+          // Try to skip to next song if current one failed
+          if (hasNext) {
+            print('DEBUG: Attempting to skip to next song after error...');
+            try {
+              await skipNext();
+            } catch (skipError) {
+              print('DEBUG: Failed to skip to next song: $skipError');
+              // If we can't skip, we're stuck - stop playback
+              await _player.stop();
+            }
+          } else {
+            // No more songs, just stop
+            await _player.stop();
+          }
         }
       }
     });
